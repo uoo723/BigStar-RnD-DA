@@ -14,24 +14,26 @@ from transformers.tokenization_utils_base import PreTrainedTokenizerBase
 
 
 class LotteQADataset(Dataset):
-    def __init__(self, root_dir: str = "./data", mode: str = "train") -> None:
-        assert mode in {"train", "valid", "test"}
+    def __init__(self, root_data_dir: str = "./data", mode: str = "train") -> None:
+        assert mode in {"train", "val", "test"}
 
         if mode == "train":
             df = pd.concat(
                 [
                     pd.read_csv(
-                        os.path.join(root_dir, "train01.csv"), low_memory=False
+                        os.path.join(root_data_dir, "train01.csv"), low_memory=False
                     ),
                     pd.read_csv(
-                        os.path.join(root_dir, "train02.csv"), low_memory=False
+                        os.path.join(root_data_dir, "train02.csv"), low_memory=False
                     ),
                 ]
             )
-        elif mode == "valid":
-            df = pd.read_csv(os.path.join(root_dir, "validation.csv"), low_memory=False)
+        elif mode == "val":
+            df = pd.read_csv(
+                os.path.join(root_data_dir, "validation.csv"), low_memory=False
+            )
         elif mode == "test":
-            df = pd.read_csv(os.path.join(root_dir, "test.csv"), low_memory=False)
+            df = pd.read_csv(os.path.join(root_data_dir, "test.csv"), low_memory=False)
 
         self.df = df[df["QA여부"] == "q"]
 

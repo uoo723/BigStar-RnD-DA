@@ -5,17 +5,20 @@ Created on 2022/06/07
 import copy
 import inspect
 import json
+import os
 import random
 import shutil
 import time
 from datetime import timedelta
 from functools import wraps
-from typing import Any, Dict
+from typing import Any, Dict, Optional
 
+import joblib
 import numpy as np
 import torch
 from attrdict import AttrDict as _AttrDict
 from logzero import logger
+from sklearn.preprocessing import LabelEncoder
 
 
 class AttrDict(_AttrDict):
@@ -77,3 +80,17 @@ def get_num_batches(batch_size: int, num_samples: int, drop_last: bool = False) 
     if drop_last:
         return num_samples // batch_size
     return (num_samples + batch_size - 1) // batch_size
+
+
+def get_label_encoder(path: str, y: Optional[np.array] = None) -> LabelEncoder:
+    if os.path.exists(path):
+        return joblib.load(path)
+
+    assert y is not None
+
+    le = LabelEncoder().fit(y)
+
+    os.makedirs(os.path.dirname(path), exist_ok=True)
+    joblib.dump(le, path)
+
+    return le

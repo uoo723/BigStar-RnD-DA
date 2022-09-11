@@ -140,3 +140,6 @@ notebooks/
 
 # vscode
 .vscode/
+
+# misc
+cache/
