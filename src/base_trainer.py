@@ -622,11 +622,9 @@ def test(
         )
     else:
         assert ckpt_path is not None
-
-        trainer.ckpt_path = ckpt_path
         trainer_model = None
 
-    results = trainer.test(trainer_model, verbose=False)
+    results = trainer.test(trainer_model, verbose=False, ckpt_path=ckpt_path)
 
     if results is not None:
         results = results[0]
