@@ -22,7 +22,7 @@ args=(
     --use-layernorm
     --max-length 30
     --seed $1
-    --swa-warmup 0
+    --swa-warmup 1
     --eval-step 5000
     --early 30
     --mp-enabled

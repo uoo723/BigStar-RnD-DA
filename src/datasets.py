@@ -38,7 +38,7 @@ class LotteQADataset(Dataset):
         self.df = df[df["QA여부"] == "q"]
 
     def __getitem__(self, index) -> Tuple[str, str]:
-        return tuple(self.df[["발화문", "인텐트"]].iloc[index].tolist())
+        return tuple(self.df.iloc[index][["발화문", "인텐트"]].tolist())
 
     def __len__(self) -> int:
         return len(self.df)
