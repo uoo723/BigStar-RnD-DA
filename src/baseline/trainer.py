@@ -55,6 +55,7 @@ class BaselineTrainerModel(BaseTrainerModel):
         linear_size: List[str] = [256],
         linear_dropout: float = 0.2,
         use_layernorm: bool = False,
+        aug_filename: Optional[str] = None,
         *args: Any,
         **kwargs: Any,
     ) -> None:
@@ -66,6 +67,7 @@ class BaselineTrainerModel(BaseTrainerModel):
         self.linear_size = linear_size
         self.linear_dropout = linear_dropout
         self.use_layernorm = use_layernorm
+        self.aug_filename = aug_filename
         self.save_hyperparameters(ignore=self.IGNORE_HPARAMS)
 
     def prepare_data(self) -> None:
@@ -81,7 +83,7 @@ class BaselineTrainerModel(BaseTrainerModel):
             raise ValueError(f"{stage} stage is not supported")
 
         if stage == "fit" and self.train_dataset is None:
-            train_dataset = LotteQADataset()
+            train_dataset = LotteQADataset(aug_filename=self.aug_filename)
             val_dataset = LotteQADataset(mode="val")
 
             _, self.val_ids = train_test_split(

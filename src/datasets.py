@@ -3,7 +3,7 @@ Created on 2022/09/10
 @author Sangwoo Han
 """
 import os
-from typing import Dict, Iterable, Tuple
+from typing import Dict, Iterable, Tuple, Optional
 
 import numpy as np
 import pandas as pd
@@ -14,8 +14,19 @@ from transformers.tokenization_utils_base import PreTrainedTokenizerBase
 
 
 class LotteQADataset(Dataset):
-    def __init__(self, root_data_dir: str = "./data", mode: str = "train") -> None:
+    def __init__(
+        self,
+        root_data_dir: str = "./data",
+        mode: str = "train",
+        aug_filename: Optional[str] = None,
+    ) -> None:
         assert mode in {"train", "val", "test"}
+
+        if aug_filename is not None:
+            df = pd.read_csv(os.path.join(root_data_dir, aug_filename), low_memory=False)
+            assert "발화문" in df.columns and "인텐트" in df.columns
+            self.df = df
+            return
 
         if mode == "train":
             df = pd.concat(

@@ -102,6 +102,7 @@ _dataset_options = [
     optgroup.option("--root-data-dir", type=click.Path(exists=True), default="./data", help="Preprocessed data filepath"),
     optgroup.option("--cache-dir", type=click.Path(), default="./cache", help="Cache directory for huggingface datasets"),
     optgroup.option("--max-length", type=click.INT, default=30, help="Max length of token"),
+    optgroup.option("--aug-filename", type=click.STRING, help="filename in which data is augmented"),
 ]
 
 _baseline_options = [
