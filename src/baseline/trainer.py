@@ -38,6 +38,7 @@ class BaselineTrainerModel(BaseTrainerModel):
         "linear_size",
         "linear_dropout",
         "use_layernorm",
+        "max_length",
     ]
 
     IGNORE_HPARAMS: List[str] = BaseTrainerModel.IGNORE_HPARAMS + [
