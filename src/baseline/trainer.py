@@ -104,14 +104,14 @@ class BaselineTrainerModel(BaseTrainerModel):
             train_dataset = LotteQADataset(aug_filename=self.aug_filename)
             val_dataset = LotteQADataset(mode="val")
 
-            if self.valid_size < 1.0 or isinstance(self.valid_size, int):
+            if self.valid_size == 1.0:
+                self.val_ids = np.arange(len(val_dataset))
+            else:
                 _, self.val_ids = train_test_split(
                     np.arange(len(val_dataset)),
                     test_size=self.valid_size,
                     random_state=self.seed,
                 )
-            else:
-                self.val_ids = np.arange(len(val_dataset))
 
             self.train_dataset = train_dataset
             self.val_dataset = Subset(val_dataset, self.val_ids)
