@@ -20,8 +20,10 @@ from pytorch_lightning.utilities.types import (
 )
 from sklearn.metrics import accuracy_score, f1_score
 from sklearn.model_selection import train_test_split
+from sklearn.preprocessing import LabelEncoder
 from torch.utils.data import DataLoader, Subset
 from transformers import AutoTokenizer
+from transformers.tokenization_utils_base import PreTrainedTokenizerBase
 
 from .. import base_trainer
 from ..base_trainer import BaseTrainerModel
@@ -68,15 +70,28 @@ class BaselineTrainerModel(BaseTrainerModel):
         self.linear_dropout = linear_dropout
         self.use_layernorm = use_layernorm
         self.aug_filename = aug_filename
+        self._le = None
+        self._tokenizer = None
         self.save_hyperparameters(ignore=self.IGNORE_HPARAMS)
+
+    @property
+    def le(self) -> LabelEncoder:
+        if self._le is None:
+            dataset = LotteQADataset()
+            self._le = get_label_encoder(
+                os.path.join(self.cache_dir, "label_encoder"), dataset.y
+            )
+        return self._le
+
+    @property
+    def tokenizer(self) -> PreTrainedTokenizerBase:
+        if self._tokenizer is None:
+            self._tokenizer = AutoTokenizer.from_pretrained(self.pretrained_model_name)
+        return self._tokenizer
 
     def prepare_data(self) -> None:
         logger.info("Prepare data...")
-        dataset = LotteQADataset()
-        self.tokenizer = AutoTokenizer.from_pretrained(self.pretrained_model_name)
-        self.le = get_label_encoder(
-            os.path.join(self.cache_dir, "label_encoder"), dataset.y
-        )
+        _ = self.le, self.tokenizer
 
     def setup_dataset(self, stage: Optional[str] = None) -> None:
         if stage == "predict":
