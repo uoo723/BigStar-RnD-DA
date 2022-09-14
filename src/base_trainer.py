@@ -613,6 +613,7 @@ def test(
 
         trainer_model.setup(stage="test")
         load_model_state(trainer_model, ckpt_path)
+        ckpt_path = None
 
         trainer = pl.Trainer(
             gpus=args.num_gpus,
