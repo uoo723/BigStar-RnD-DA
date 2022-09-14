@@ -596,6 +596,7 @@ def test(
     # assert args.run_id is not None, "run_id must be specified"
 
     ckpt_path = None
+    trainer_model = None
 
     if args.run_id is not None:
         ckpt_path = get_ckpt_path(
@@ -625,8 +626,8 @@ def test(
         )
     else:
         if ckpt_path is not None:
-            train_model = trainer.model
-            load_model_state(train_model, ckpt_path)
+            trainer_model = trainer.model
+            load_model_state(trainer_model, ckpt_path)
 
     results = trainer.test(trainer_model, verbose=False)
 
