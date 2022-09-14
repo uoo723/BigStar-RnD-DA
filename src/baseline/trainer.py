@@ -29,7 +29,7 @@ from .. import base_trainer
 from ..base_trainer import BaseTrainerModel
 from ..datasets import LotteQADataset, collate_fn
 from ..utils import AttrDict, filter_arguments, get_label_encoder
-from .models import BaselineModel
+from .models import BaselineModel, BaselineModelWithMLAttention
 
 BATCH = Tuple[Dict[str, torch.Tensor], torch.Tensor]
 
@@ -41,6 +41,7 @@ class BaselineTrainerModel(BaseTrainerModel):
         "linear_dropout",
         "use_layernorm",
         "max_length",
+        "model_name",
     ]
 
     IGNORE_HPARAMS: List[str] = BaseTrainerModel.IGNORE_HPARAMS + [
@@ -54,6 +55,7 @@ class BaselineTrainerModel(BaseTrainerModel):
         cache_dir: str = "./cache_dir",
         max_length: int = 30,
         pretrained_model_name: str = "monologg/koelectra-base-v3-discriminator",
+        model_name: str = "Baseline",
         linear_size: List[str] = [256],
         linear_dropout: float = 0.2,
         use_layernorm: bool = False,
@@ -66,6 +68,7 @@ class BaselineTrainerModel(BaseTrainerModel):
         self.cache_dir = cache_dir
         self.max_length = max_length
         self.pretrained_model_name = pretrained_model_name
+        self.model_name = model_name
         self.linear_size = linear_size
         self.linear_dropout = linear_dropout
         self.use_layernorm = use_layernorm
@@ -162,8 +165,14 @@ class BaselineTrainerModel(BaseTrainerModel):
 
         hparams = {param: getattr(self, param) for param in self.MODEL_HPARAMS}
 
-        self.model = BaselineModel(
-            num_labels=len(self.le.classes_), **filter_arguments(hparams, BaselineModel)
+        model_cls = (
+            BaselineModel
+            if self.model_name == "Baseline"
+            else BaselineModelWithMLAttention
+        )
+
+        self.model = model_cls(
+            num_labels=len(self.le.classes_), **filter_arguments(hparams, model_cls)
         )
 
     def training_step(self, batch: BATCH, _) -> STEP_OUTPUT:
@@ -222,7 +231,7 @@ class BaselineTrainerModel(BaseTrainerModel):
 
 def check_args(args: AttrDict) -> None:
     valid_early_criterion = ["f1", "acc"]
-    valid_model_name = ["Baseline"]
+    valid_model_name = ["Baseline", "BaselineWithMLAttention"]
     valid_dataset_name = ["LotteQA"]
     base_trainer.check_args(
         args, valid_early_criterion, valid_model_name, valid_dataset_name
