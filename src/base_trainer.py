@@ -612,20 +612,23 @@ def test(
         )
 
         trainer_model.setup(stage="test")
-        load_model_state(trainer_model, ckpt_path)
-        ckpt_path = None
+
+        if ckpt_path is not None:
+            load_model_state(trainer_model, ckpt_path)
 
         trainer = pl.Trainer(
             gpus=args.num_gpus,
             precision=16 if args.mp_enabled else 32,
             enable_model_summary=False,
+            max_epochs=1,
             logger=False,
         )
     else:
-        assert ckpt_path is not None
-        trainer_model = None
+        if ckpt_path is not None:
+            train_model = trainer.model
+            load_model_state(train_model, ckpt_path)
 
-    results = trainer.test(trainer_model, verbose=False, ckpt_path=ckpt_path)
+    results = trainer.test(trainer_model, verbose=False)
 
     if results is not None:
         results = results[0]
