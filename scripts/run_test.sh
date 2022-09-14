@@ -12,8 +12,8 @@ args=(
     --run-script $0
     --optim-name "adamw"
     --mode "test"
-    --test-batch-size 64
-    --run-id "8119d5093bb5486ea9c23f7954755deb"
+    --test-batch-size 32
+    --run-id "201d41530e1c45938830e23191293e4c"
 )
 
 python main.py train-baseline "${args[@]}"
