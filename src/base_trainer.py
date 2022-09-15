@@ -78,7 +78,7 @@ def _get_gpu_info(num_gpus: int) -> List[str]:
     return [f"{i}: {torch.cuda.get_device_name(i)}" for i in range(num_gpus)]
 
 
-def _get_run_data(
+def get_run_data(
     log_dir: str, run_id: str, data_type: str = "params"
 ) -> Dict[str, Any]:
     assert data_type in ["params", "tags"]
@@ -98,12 +98,12 @@ def _get_run_data(
 def get_model_hparams(
     log_dir: str, run_id: str, model_hparams: Iterable[str]
 ) -> Dict[str, Any]:
-    params: Dict[str, Any] = _get_run_data(log_dir, run_id)
+    params: Dict[str, Any] = get_run_data(log_dir, run_id)
     return {k: v for k, v in params.items() if k in model_hparams}
 
 
 def get_run_tags(log_dir: str, run_id: str) -> Dict[str, Any]:
-    return _get_run_data(log_dir, run_id, data_type="tags")
+    return get_run_data(log_dir, run_id, data_type="tags")
 
 
 def load_model_state(
@@ -233,7 +233,6 @@ def _get_scheduler(
 
 class BaseTrainerModel(pl.LightningModule, ABC):
     IGNORE_HPARAMS: List[str] = [
-        "model_name",
         "dataset_name",
         "num_gpus",
         "num_workers",
@@ -408,7 +407,6 @@ class BaseTrainerModel(pl.LightningModule, ABC):
 
         experiment.set_tag(self.logger.run_id, "run_id", self.logger.run_id)
         experiment.set_tag(self.logger.run_id, "host", os.uname()[1])
-        experiment.set_tag(self.logger.run_id, "model_name", self.model_name)
         experiment.set_tag(self.logger.run_id, "dataset_name", self.dataset_name)
         experiment.set_tag(self.logger.run_id, "use_deepspeed", self.use_deepspeed)
 
