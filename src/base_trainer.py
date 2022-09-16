@@ -614,6 +614,7 @@ def test(
 
         if ckpt_path is not None:
             load_model_state(trainer_model, ckpt_path)
+            ckpt_path = None
 
         trainer = pl.Trainer(
             gpus=args.num_gpus,
@@ -622,12 +623,8 @@ def test(
             max_epochs=1,
             logger=False,
         )
-    else:
-        if ckpt_path is not None:
-            trainer_model = trainer.model
-            load_model_state(trainer_model, ckpt_path)
 
-    results = trainer.test(trainer_model, verbose=False)
+    results = trainer.test(trainer_model, ckpt_path=ckpt_path, verbose=False)
 
     if results is not None:
         results = results[0]

@@ -18,7 +18,7 @@ from pytorch_lightning.utilities.types import (
     STEP_OUTPUT,
     TRAIN_DATALOADERS,
 )
-from sklearn.metrics import accuracy_score, f1_score
+from sklearn.metrics import f1_score, precision_score, recall_score
 from sklearn.model_selection import train_test_split
 from sklearn.preprocessing import LabelEncoder
 from torch.utils.data import DataLoader, Subset
@@ -211,13 +211,22 @@ class BaselineTrainerModel(BaseTrainerModel):
         else:
             gt = self.le.transform(self.test_dataset.y)[: len(predictions)]
 
-        acc = accuracy_score(gt, predictions)
-        f1 = f1_score(gt, predictions, average="micro")
+        prec_macro = precision_score(gt, predictions, average="macro")
+        f1_micro = f1_score(gt, predictions, average="micro")
 
         if is_val:
-            self.log_dict({"val/f1": f1, "val/acc": acc}, prog_bar=True)
+            self.log_dict({"val/f1": f1_micro, "val/prec": prec_macro}, prog_bar=True)
         else:
-            self.log_dict({"test/f1": f1, "test/acc": acc})
+            f1_macro = f1_score(gt, predictions, average="macro")
+            recall_macro = recall_score(gt, predictions, average="macro")
+            self.log_dict(
+                {
+                    "test/f1_micro": f1_micro,
+                    "test/f1_macro": f1_macro,
+                    "test/prec_macro": prec_macro,
+                    "test/recall_macro": recall_macro,
+                }
+            )
 
     def validation_step(self, batch: BATCH, _) -> Optional[STEP_OUTPUT]:
         return self._validation_and_test_step(batch, is_val=True)
@@ -233,7 +242,7 @@ class BaselineTrainerModel(BaseTrainerModel):
 
 
 def check_args(args: AttrDict) -> None:
-    valid_early_criterion = ["f1", "acc"]
+    valid_early_criterion = ["f1", "prec"]
     valid_model_name = ["Baseline", "BaselineWithMLAttention"]
     valid_dataset_name = ["LotteQA"]
     base_trainer.check_args(
@@ -266,7 +275,7 @@ def test(
     return base_trainer.test(
         args,
         BaselineTrainerModel,
-        metrics=["f1", "acc"],
+        metrics=["f1_micro", "f1_macro", "prec_macro", "recall_macro"],
         trainer=trainer,
         is_hptuning=is_hptuning,
     )
