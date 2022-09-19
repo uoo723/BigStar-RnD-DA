@@ -21,3 +21,4 @@ isort==5.10.1
 jupyterlab-code-formatter==1.4.11
 ipywidgets==7.7.0
 deepspeed==0.6.7
+sentencepiece==0.1.97

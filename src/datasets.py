@@ -3,7 +3,7 @@ Created on 2022/09/10
 @author Sangwoo Han
 """
 import os
-from typing import Dict, Iterable, Tuple, Optional
+from typing import Dict, Iterable, Optional, Tuple
 
 import numpy as np
 import pandas as pd
@@ -22,8 +22,13 @@ class LotteQADataset(Dataset):
     ) -> None:
         assert mode in {"train", "val", "test"}
 
+        self._x = None
+        self._y = None
+
         if aug_filename is not None:
-            df = pd.read_csv(os.path.join(root_data_dir, aug_filename), low_memory=False)
+            df = pd.read_csv(
+                os.path.join(root_data_dir, aug_filename), low_memory=False
+            )
             assert "발화문" in df.columns and "인텐트" in df.columns
             self.df = df
             return
@@ -56,11 +61,15 @@ class LotteQADataset(Dataset):
 
     @property
     def x(self) -> np.array:
-        return self.df["발화문"].to_numpy()
+        if self._x is None:
+            self._x = self.df["발화문"].to_numpy()
+        return self._x
 
     @property
     def y(self) -> np.array:
-        return self.df["인텐트"].to_numpy()
+        if self._y is None:
+            self._y = self.df["인텐트"].to_numpy()
+        return self._y
 
 
 def collate_fn(
