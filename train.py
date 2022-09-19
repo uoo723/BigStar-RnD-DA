@@ -11,7 +11,7 @@ from logzero import logger
 from optuna import Trial
 
 from main import cli
-from src.utils import AttrDict, log_elapsed_time, save_args
+from src.utils import AttrDict, add_options, log_elapsed_time, save_args
 
 
 class FloatIntParamType(click.ParamType):
@@ -114,15 +114,6 @@ _baseline_options = [
 ]
 
 # fmt: on
-
-
-def add_options(options):
-    def _add_options(func):
-        for option in reversed(options):
-            func = option(func)
-        return func
-
-    return _add_options
 
 
 @cli.command(context_settings={"show_default": True})

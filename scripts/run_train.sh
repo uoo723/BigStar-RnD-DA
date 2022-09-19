@@ -23,7 +23,7 @@ args=(
     --max-length 100
     --seed $1
     --swa-warmup 1
-    --eval-step 5000
+    --eval-step 500
     --early 10
     --mp-enabled
     --gradient-max-norm 5.0
@@ -32,7 +32,7 @@ args=(
     --valid-size 1.0
     # --load-only-weights
     # --run-id "8119d5093bb5486ea9c23f7954755deb"
-    # --aug-filename "augmented.eda.v1.csv"
+    # --aug-filename "augmented.eda.v2.csv"
 )
 
 python main.py train-baseline "${args[@]}"
