@@ -82,7 +82,7 @@ class BaselineTrainerModel(BaseTrainerModel):
         if self._le is None:
             dataset = LotteQADataset()
             self._le = get_label_encoder(
-                os.path.join(self.cache_dir, "label_encoder"), dataset.y
+                os.path.join(self.cache_dir, "label_encoder.joblib"), dataset.y
             )
         return self._le
 
