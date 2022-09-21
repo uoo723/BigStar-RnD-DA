@@ -294,7 +294,15 @@ def test(
     return base_trainer.test(
         args,
         BaselineTrainerModel,
-        metrics=["f1_micro", "f1_macro", "prec_macro", "recall_macro"],
+        metrics=[
+            "f1_micro",
+            "f1_macro",
+            "prec_macro",
+            "recall_macro",
+            "f1_weighted",
+            "prec_weighted",
+            "recall_weighted",
+        ],
         trainer=trainer,
         is_hptuning=is_hptuning,
     )
