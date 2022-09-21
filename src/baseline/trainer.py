@@ -211,20 +211,39 @@ class BaselineTrainerModel(BaseTrainerModel):
         else:
             gt = self.le.transform(self.test_dataset.y)[: len(predictions)]
 
-        prec_macro = precision_score(gt, predictions, average="macro")
+        # f1_micro = prec_micro = recall_micro
         f1_micro = f1_score(gt, predictions, average="micro")
 
+        f1_macro = f1_score(gt, predictions, average="macro")
+        prec_macro = precision_score(gt, predictions, average="macro")
+        recall_macro = recall_score(gt, predictions, average="macro")
+
+        f1_weighted = f1_score(gt, predictions, average="weighted")
+        prec_weighted = precision_score(gt, predictions, average="weighted")
+        recall_weighted = recall_score(gt, predictions, average="weighted")
+
         if is_val:
-            self.log_dict({"val/f1": f1_micro, "val/prec": prec_macro}, prog_bar=True)
+            self.log_dict({"val/f1_micro": f1_micro}, prog_bar=True)
+            self.log_dict(
+                {
+                    "val/f1_macro": f1_macro,
+                    "val/prec_macro": prec_macro,
+                    "val/recall_macro": recall_macro,
+                    "val/f1_weighted": f1_weighted,
+                    "val/prec_weighted": prec_weighted,
+                    "val/recall_weighted": recall_weighted,
+                }
+            )
         else:
-            f1_macro = f1_score(gt, predictions, average="macro")
-            recall_macro = recall_score(gt, predictions, average="macro")
             self.log_dict(
                 {
                     "test/f1_micro": f1_micro,
                     "test/f1_macro": f1_macro,
                     "test/prec_macro": prec_macro,
                     "test/recall_macro": recall_macro,
+                    "test/f1_weighted": f1_weighted,
+                    "test/prec_weighted": prec_weighted,
+                    "test/recall_weighted": recall_weighted,
                 }
             )
 
@@ -242,7 +261,7 @@ class BaselineTrainerModel(BaseTrainerModel):
 
 
 def check_args(args: AttrDict) -> None:
-    valid_early_criterion = ["f1", "prec"]
+    valid_early_criterion = ["f1_micro", "prec_macro", "recall_macro", "loss"]
     valid_model_name = ["Baseline", "BaselineWithMLAttention"]
     valid_dataset_name = ["LotteQA"]
     base_trainer.check_args(

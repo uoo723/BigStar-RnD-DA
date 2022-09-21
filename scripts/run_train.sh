@@ -18,12 +18,13 @@ args=(
     --accumulation-step 1
     --scheduler-type "linear"
     --scheduler-warmup 0.02
-    --early-criterion 'f1'
+    --early-criterion 'f1_micro'
+    --pretrained-model-name "klue/bert-base"
     --use-layernorm
     --max-length 100
     --seed $1
     --swa-warmup 1
-    --eval-step 500
+    --eval-step 5000
     --early 10
     --mp-enabled
     --gradient-max-norm 5.0
@@ -32,7 +33,7 @@ args=(
     --valid-size 1.0
     # --load-only-weights
     # --run-id "8119d5093bb5486ea9c23f7954755deb"
-    # --aug-filename "augmented.eda.v2.csv"
+    # --aug-filename "augmented.backtranslation.v1.csv"
 )
 
 python main.py train-baseline "${args[@]}"
