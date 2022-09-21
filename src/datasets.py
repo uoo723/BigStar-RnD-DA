@@ -60,13 +60,13 @@ class LotteQADataset(Dataset):
         return len(self.df)
 
     @property
-    def x(self) -> np.array:
+    def x(self) -> np.ndarray:
         if self._x is None:
             self._x = self.df["발화문"].to_numpy()
         return self._x
 
     @property
-    def y(self) -> np.array:
+    def y(self) -> np.ndarray:
         if self._y is None:
             self._y = self.df["인텐트"].to_numpy()
         return self._y

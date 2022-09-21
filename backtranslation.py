@@ -2,12 +2,13 @@
 Created on 2022/09/19
 @author Sangwoo Han
 """
-from functools import partial
+from collections import Counter
 from pathlib import Path
 from typing import Any, Dict, Iterable, List, Tuple
 
 import click
 import joblib
+import numpy as np
 import torch
 import torch.amp
 from logzero import logger
@@ -18,7 +19,7 @@ from transformers.tokenization_utils_base import PreTrainedTokenizerBase
 
 from main import cli
 from src.datasets import LotteQADataset
-from src.utils import AttrDict, add_options, log_elapsed_time
+from src.utils import AttrDict, add_options, get_label_encoder, log_elapsed_time
 
 # fmt: off
 
@@ -28,29 +29,33 @@ _options = [
     click.option("--mp-enabled", is_flag=True, default=False, help="Enable Mixed Precision"),
     click.option("--num-workers", type=click.INT, default=4, help="Number of workers for data loader"),
     click.option("--output-dir", type=click.Path(), default="./outputs/backtranslation", help="Output path"),
+    click.option("--output-filename", type=click.STRING, default="back_translated.joblib", help="Output filename"),
+    click.option("--over", is_flag=True, default=False, help="Use over sampling"),
+    click.option("--max-samples", type=click.INT, help="Max # of generated samples"),
+    click.option("--save-interval", type=click.INT, default=500, help="Save interval"),
 ]
 
 # fmt: on
 
 
 class ListDataset(Dataset):
-    def __init__(self, data: List[str]) -> None:
-        self.data = data
+    def __init__(self, x: List[str], y: List[str]) -> None:
+        self.x = x
+        self.y = y
 
     def __getitem__(self, index: int) -> str:
-        return (self.data[index],)
+        return (self.x[index], self.y[index])
 
     def __len__(self) -> int:
-        return len(self.data)
+        return len(self.x)
 
 
 def _collate_fn_seq2seq(
-    batch: Iterable[Tuple[str, str]],
-    tokenizer: PreTrainedTokenizerBase,
-) -> Tuple[Dict[str, torch.Tensor]]:
+    batch: Iterable[Tuple[str, str]]
+) -> Tuple[List[str], List[str]]:
     x = [b[0] for b in batch]
-    inputs = tokenizer(x, padding=True, return_tensors="pt")
-    return inputs
+    y = [b[1] for b in batch]
+    return x, y
 
 
 def _generate_seq(
@@ -69,14 +74,152 @@ def _generate_seq(
         return tokenizer.batch_decode(encoded, skip_special_tokens=True)
 
 
+def _backtranslate(
+    sents: List[str],
+    src_model: MarianMTModel,
+    src_tokenizer: PreTrainedTokenizerBase,
+    tgt_model: MarianMTModel,
+    tgt_tokenizer: PreTrainedTokenizerBase,
+    device: torch.device = torch.device("cpu"),
+    mp_enabled: bool = False,
+) -> List[str]:
+    # Translate from source language to target language
+    inputs = src_tokenizer(
+        sents, padding=True, truncation=True, max_length=512, return_tensors="pt"
+    )
+    inputs = {k: v.to(device) for k, v in inputs.items()}
+    translated = _generate_seq(inputs, src_model, src_tokenizer, device, mp_enabled)
+
+    # Translate from target language back to source language
+    inputs = tgt_tokenizer(
+        translated, padding=True, truncation=True, max_length=512, return_tensors="pt"
+    )
+    inputs = {k: v.to(device) for k, v in inputs.items()}
+    back_translated = _generate_seq(
+        inputs, tgt_model, tgt_tokenizer, device, mp_enabled
+    )
+
+    return back_translated
+
+
+def _generate_samples(
+    dataset: LotteQADataset,
+    src_model: MarianMTModel,
+    src_tokenizer: PreTrainedTokenizerBase,
+    tgt_model: MarianMTModel,
+    tgt_tokenizer: PreTrainedTokenizerBase,
+    args: AttrDict,
+) -> None:
+    dataloader = DataLoader(
+        dataset,
+        batch_size=args.batch_size,
+        collate_fn=_collate_fn_seq2seq,
+        pin_memory=not args.no_cuda,
+        num_workers=args.num_workers,
+    )
+
+    back_translated = []
+    for batch_x, batch_y in tqdm(dataloader):
+        back_translated.extend(
+            list(
+                zip(
+                    _backtranslate(
+                        batch_x,
+                        src_model,
+                        src_tokenizer,
+                        tgt_model,
+                        tgt_tokenizer,
+                        args.device,
+                        args.mp_enabled,
+                    ),
+                    batch_y,
+                )
+            )
+        )
+
+    joblib.dump(back_translated, args.output_dir / args.output_filename)
+
+
+def _generate_samples_with_over(
+    dataset: LotteQADataset,
+    src_model: MarianMTModel,
+    src_tokenizer: PreTrainedTokenizerBase,
+    tgt_model: MarianMTModel,
+    tgt_tokenizer: PreTrainedTokenizerBase,
+    args: AttrDict,
+) -> None:
+    le = get_label_encoder("cache/label_encoder.joblib", dataset.y)
+    y = le.transform(dataset.y)
+
+    max_samples = args.max_samples or len(dataset)
+
+    back_translated = set()
+    xs, ys = dataset.x.copy(), dataset.y.copy()
+    num_steps = 0
+
+    with tqdm(total=max_samples) as pbar:
+        while len(back_translated) < max_samples:
+            if back_translated:
+                aug_xs, aug_ys = zip(*back_translated)
+                xs = np.concatenate([dataset.x, aug_xs])
+                ys = np.concatenate([dataset.y, aug_ys])
+
+            cnt = Counter(ys)
+            idx, n_samples = zip(*cnt.items())
+            idx = np.array(idx)
+            n_samples = np.array(n_samples)
+            n_samples = n_samples[np.argsort(idx)]
+            n_samples = torch.from_numpy(n_samples)
+
+            batch_idx = np.random.choice(len(xs), size=args.batch_size, replace=False)
+            batch_x = xs[batch_idx]
+            batch_y = le.transform(ys[batch_idx])
+            probs = 1 - n_samples[batch_y] / n_samples.max()
+            idx = torch.bernoulli(probs).nonzero(as_tuple=True)[0]
+            idx = idx[: max_samples - len(back_translated)].reshape(-1)
+
+            if idx.nelement() == 0:
+                continue
+
+            idx = idx.numpy()
+            before_added = len(back_translated)
+            back_translated.update(
+                set(
+                    zip(
+                        _backtranslate(
+                            batch_x[idx].tolist(),
+                            src_model,
+                            src_tokenizer,
+                            tgt_model,
+                            tgt_tokenizer,
+                            args.device,
+                            args.mp_enabled,
+                        ),
+                        le.classes_[batch_y[idx]].tolist(),
+                    )
+                )
+            )
+            after_added = len(back_translated)
+            pbar.update(after_added - before_added)
+
+            num_steps += 1
+
+            if num_steps % args.save_interval == 0:
+                joblib.dump(
+                    list(back_translated), args.output_dir / args.output_filename
+                )
+
+    joblib.dump(list(back_translated), args.output_dir / args.output_filename)
+
+
 @cli.command(context_settings={"show_default": True})
 @add_options(_options)
 @log_elapsed_time
 def backtranslation(**args: Any) -> None:
     args = AttrDict(args)
-    device = torch.device("cpu" if args.no_cuda else "cuda")
-    output_dir = Path(args.output_dir)
-    output_dir.mkdir(exist_ok=True)
+    args.device = torch.device("cpu" if args.no_cuda else "cuda")
+    args.output_dir = Path(args.output_dir)
+    args.output_dir.mkdir(exist_ok=True)
 
     logger.info("Load Dataset")
     train_dataset = LotteQADataset()
@@ -86,7 +229,7 @@ def backtranslation(**args: Any) -> None:
     logger.info("Load src model")
     src_model_name = "Helsinki-NLP/opus-mt-ko-en"
     src_model = MarianMTModel.from_pretrained(src_model_name)
-    src_model.to(device)
+    src_model.to(args.device)
     src_tokenizer: PreTrainedTokenizerBase = AutoTokenizer.from_pretrained(
         src_model_name
     )
@@ -94,39 +237,16 @@ def backtranslation(**args: Any) -> None:
     logger.info("Load tgt model")
     tgt_model_name = "Helsinki-NLP/opus-mt-tc-big-en-ko"
     tgt_model = MarianMTModel.from_pretrained(tgt_model_name)
-    tgt_model.to(device)
+    tgt_model.to(args.device)
     tgt_tokenizer: PreTrainedTokenizerBase = AutoTokenizer.from_pretrained(
         "en_ko_tokenizer"
     )
 
-    train_dataloader = DataLoader(
-        train_dataset,
-        batch_size=args.batch_size,
-        collate_fn=partial(_collate_fn_seq2seq, tokenizer=src_tokenizer),
-        pin_memory=not args.no_cuda,
-        num_workers=args.num_workers,
-    )
-
-    src_translated = []
-    for batch_x in tqdm(train_dataloader, desc="ko..en"):
-        src_translated.extend(
-            _generate_seq(batch_x, src_model, src_tokenizer, device, args.mp_enabled)
+    if not args.over:
+        _generate_samples(
+            train_dataset, src_model, src_tokenizer, tgt_model, tgt_tokenizer, args
         )
-
-    joblib.dump(src_translated, output_dir / "src_translated.joblib")
-
-    train_dataloader = DataLoader(
-        ListDataset(src_translated),
-        batch_size=args.batch_size,
-        collate_fn=partial(_collate_fn_seq2seq, tokenizer=tgt_tokenizer),
-        pin_memory=not args.no_cuda,
-        num_workers=args.num_workers,
-    )
-
-    tgt_translated = []
-    for batch_x in tqdm(train_dataloader, desc="en..ko"):
-        tgt_translated.extend(
-            _generate_seq(batch_x, tgt_model, tgt_tokenizer, device, args.mp_enabled)
+    else:
+        _generate_samples_with_over(
+            train_dataset, src_model, src_tokenizer, tgt_model, tgt_tokenizer, args
         )
-
-    joblib.dump(tgt_translated, output_dir / "tgt_translated.joblib")
