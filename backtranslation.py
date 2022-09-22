@@ -149,15 +149,19 @@ def _generate_samples_with_over(
     args: AttrDict,
 ) -> None:
     le = get_label_encoder("cache/label_encoder.joblib", dataset.y)
-    y = le.transform(dataset.y)
 
-    max_samples = args.max_samples or len(dataset)
+    output_path: Path = args.output_dir / args.output_filename
 
-    back_translated = set()
-    xs, ys = dataset.x.copy(), dataset.y.copy()
+    if output_path.exists():
+        back_translated = set(joblib.load(output_path))
+        xs, ys = dataset.x.copy(), dataset.y.copy()
+    else:
+        back_translated = set()
+
     num_steps = 0
-
+    max_samples = args.max_samples or len(dataset)
     with tqdm(total=max_samples) as pbar:
+        pbar.update(len(back_translated))
         while len(back_translated) < max_samples:
             if back_translated:
                 aug_xs, aug_ys = zip(*back_translated)
@@ -205,11 +209,9 @@ def _generate_samples_with_over(
             num_steps += 1
 
             if num_steps % args.save_interval == 0:
-                joblib.dump(
-                    list(back_translated), args.output_dir / args.output_filename
-                )
+                joblib.dump(list(back_translated), output_path)
 
-    joblib.dump(list(back_translated), args.output_dir / args.output_filename)
+    joblib.dump(list(back_translated), output_path)
 
 
 @cli.command(context_settings={"show_default": True})
