@@ -18,7 +18,7 @@ from pytorch_lightning.utilities.types import (
     STEP_OUTPUT,
     TRAIN_DATALOADERS,
 )
-from sklearn.metrics import f1_score, precision_score, recall_score
+from sklearn.metrics import f1_score, precision_recall_fscore_support
 from sklearn.model_selection import train_test_split
 from sklearn.preprocessing import LabelEncoder
 from torch.utils.data import DataLoader, Subset
@@ -211,16 +211,21 @@ class BaselineTrainerModel(BaseTrainerModel):
         else:
             gt = self.le.transform(self.test_dataset.y)[: len(predictions)]
 
-        # f1_micro = prec_micro = recall_micro
-        f1_micro = f1_score(gt, predictions, average="micro")
+        # f1_micro = prec_micro = recall_micro == accuracy
+        f1_micro = f1_score(gt, predictions, average="micro", zero_division=0)
 
-        f1_macro = f1_score(gt, predictions, average="macro")
-        prec_macro = precision_score(gt, predictions, average="macro")
-        recall_macro = recall_score(gt, predictions, average="macro")
+        prec_macro, recall_macro, f1_macro, _ = precision_recall_fscore_support(
+            gt, predictions, average="macro", zero_division=0
+        )
 
-        f1_weighted = f1_score(gt, predictions, average="weighted")
-        prec_weighted = precision_score(gt, predictions, average="weighted")
-        recall_weighted = recall_score(gt, predictions, average="weighted")
+        (
+            prec_weighted,
+            recall_weighted,
+            f1_weighted,
+            _,
+        ) = precision_recall_fscore_support(
+            gt, predictions, average="weighted", zero_division=0
+        )
 
         if is_val:
             self.log_dict({"val/f1_micro": f1_micro}, prog_bar=True)
