@@ -178,8 +178,8 @@ def _generate_samples_with_over(
             batch_idx = np.random.choice(len(xs), size=args.batch_size, replace=False)
             batch_x = np.array([xs[i] for i in batch_idx])
             batch_y = le.transform([ys[i] for i in batch_idx])
-            probs = 1 - n_samples[batch_y] / n_samples.max()
-            idx = torch.bernoulli(probs).nonzero(as_tuple=True)[0]
+            probs = (1 - n_samples[batch_y] / n_samples.max()) + 1e-4
+            idx = torch.bernoulli(probs.clamp(max=1.0)).nonzero(as_tuple=True)[0]
             idx = idx[: max_samples - len(back_translated)].reshape(-1)
 
             if idx.nelement() == 0:
