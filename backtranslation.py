@@ -232,7 +232,7 @@ def backtranslation(**args: Any) -> None:
     args = AttrDict(args)
     args.device = torch.device("cpu" if args.no_cuda else "cuda")
     args.output_dir = Path(args.output_dir)
-    args.output_dir.mkdir(exist_ok=True)
+    args.output_dir.mkdir(parents=True, exist_ok=True)
 
     logger.info("Load Dataset")
     train_dataset = LotteQADataset()
