@@ -34,16 +34,7 @@ class LotteQADataset(Dataset):
             return
 
         if mode == "train":
-            df = pd.concat(
-                [
-                    pd.read_csv(
-                        os.path.join(root_data_dir, "train01.csv"), low_memory=False
-                    ),
-                    pd.read_csv(
-                        os.path.join(root_data_dir, "train02.csv"), low_memory=False
-                    ),
-                ]
-            )
+            df = pd.read_csv(os.path.join(root_data_dir, "train.csv"), low_memory=False)
         elif mode == "val":
             df = pd.read_csv(
                 os.path.join(root_data_dir, "validation.csv"), low_memory=False
