@@ -152,32 +152,32 @@ def _generate_samples_with_over(
 
     output_path: Path = args.output_dir / args.output_filename
 
+    xs, ys = dataset.x.tolist(), dataset.y.tolist()
+
     if output_path.exists():
         back_translated = set(joblib.load(output_path))
-        xs, ys = dataset.x.copy(), dataset.y.copy()
+        data = set(zip(xs, ys)) | back_translated
+        xs, ys = zip(*data)
+        xs = list(xs)
+        ys = list(ys)
     else:
         back_translated = set()
+
+    cnt = Counter(ys)
+    idx, n_samples = zip(*cnt.items())
+    idx = np.array(idx)
+    n_samples = np.array(n_samples)
+    n_samples = n_samples[np.argsort(idx)]
+    n_samples = torch.from_numpy(n_samples)
 
     num_steps = 0
     max_samples = args.max_samples or len(dataset)
     with tqdm(total=max_samples) as pbar:
         pbar.update(len(back_translated))
         while len(back_translated) < max_samples:
-            if back_translated:
-                aug_xs, aug_ys = zip(*back_translated)
-                xs = np.concatenate([dataset.x, aug_xs])
-                ys = np.concatenate([dataset.y, aug_ys])
-
-            cnt = Counter(ys)
-            idx, n_samples = zip(*cnt.items())
-            idx = np.array(idx)
-            n_samples = np.array(n_samples)
-            n_samples = n_samples[np.argsort(idx)]
-            n_samples = torch.from_numpy(n_samples)
-
             batch_idx = np.random.choice(len(xs), size=args.batch_size, replace=False)
-            batch_x = xs[batch_idx]
-            batch_y = le.transform(ys[batch_idx])
+            batch_x = np.array([xs[i] for i in batch_idx])
+            batch_y = le.transform([ys[i] for i in batch_idx])
             probs = 1 - n_samples[batch_y] / n_samples.max()
             idx = torch.bernoulli(probs).nonzero(as_tuple=True)[0]
             idx = idx[: max_samples - len(back_translated)].reshape(-1)
@@ -186,8 +186,7 @@ def _generate_samples_with_over(
                 continue
 
             idx = idx.numpy()
-            before_added = len(back_translated)
-            back_translated.update(
+            aug_data = (
                 set(
                     zip(
                         _backtranslate(
@@ -202,9 +201,21 @@ def _generate_samples_with_over(
                         le.classes_[batch_y[idx]].tolist(),
                     )
                 )
+                - back_translated
             )
-            after_added = len(back_translated)
-            pbar.update(after_added - before_added)
+
+            if not aug_data:
+                continue
+
+            back_translated.update(aug_data)
+            pbar.update(len(aug_data))
+
+            aug_texts, aug_labels = zip(*aug_data)
+            xs.extend(aug_texts)
+            ys.extend(aug_labels)
+
+            for l in le.transform(aug_labels):
+                n_samples[l] += 1
 
             num_steps += 1
 
