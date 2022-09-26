@@ -103,3 +103,8 @@ def get_label_encoder(path: str, y: Optional[np.array] = None) -> LabelEncoder:
     joblib.dump(le, path)
 
     return le
+
+
+def get_n_samples(y: np.ndarray) -> torch.Tensor:
+    _, n_samples = np.unique(y, return_counts=True)
+    return torch.from_numpy(n_samples)

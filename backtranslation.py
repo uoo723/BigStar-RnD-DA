@@ -2,7 +2,6 @@
 Created on 2022/09/19
 @author Sangwoo Han
 """
-from collections import Counter
 from pathlib import Path
 from typing import Any, Dict, Iterable, List, Tuple
 
@@ -19,7 +18,13 @@ from transformers.tokenization_utils_base import PreTrainedTokenizerBase
 
 from main import cli
 from src.datasets import LotteQADataset
-from src.utils import AttrDict, add_options, get_label_encoder, log_elapsed_time
+from src.utils import (
+    AttrDict,
+    add_options,
+    get_label_encoder,
+    get_n_samples,
+    log_elapsed_time,
+)
 
 # fmt: off
 
@@ -163,12 +168,7 @@ def _generate_samples_with_over(
     else:
         back_translated = set()
 
-    cnt = Counter(ys)
-    idx, n_samples = zip(*cnt.items())
-    idx = np.array(idx)
-    n_samples = np.array(n_samples)
-    n_samples = n_samples[np.argsort(idx)]
-    n_samples = torch.from_numpy(n_samples)
+    n_samples = get_n_samples(le.transform(ys))
 
     num_steps = 0
     max_samples = args.max_samples or len(dataset)
