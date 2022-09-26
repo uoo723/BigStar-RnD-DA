@@ -2,7 +2,9 @@
 Created on 2022/09/19
 @author Sangwoo Han
 """
+import hashlib
 from pathlib import Path
+from tkinter import Y
 from typing import Any, Dict, Iterable, List, Tuple
 
 import click
@@ -21,6 +23,7 @@ from src.datasets import LotteQADataset
 from src.utils import (
     AttrDict,
     add_options,
+    delete_list_elements,
     get_label_encoder,
     get_n_samples,
     log_elapsed_time,
@@ -35,6 +38,7 @@ _options = [
     click.option("--num-workers", type=click.INT, default=4, help="Number of workers for data loader"),
     click.option("--output-dir", type=click.Path(), default="./outputs/backtranslation", help="Output path"),
     click.option("--output-filename", type=click.STRING, default="back_translated.joblib", help="Output filename"),
+    click.option("--cache-dir", type=click.Path(), default="./cache", help="Cache directory"),
     click.option("--over", is_flag=True, default=False, help="Use over sampling"),
     click.option("--max-samples", type=click.INT, help="Max # of generated samples"),
     click.option("--save-interval", type=click.INT, default=500, help="Save interval"),
@@ -153,25 +157,31 @@ def _generate_samples_with_over(
     tgt_tokenizer: PreTrainedTokenizerBase,
     args: AttrDict,
 ) -> None:
-    le = get_label_encoder("cache/label_encoder.joblib", dataset.y)
-
+    le = get_label_encoder(args.cache_dir / "label_encoder.joblib", dataset.y)
     output_path: Path = args.output_dir / args.output_filename
+    cache_dir: Path = (
+        args.cache_dir / hashlib.md5(str(output_path).encode("utf8")).hexdigest()
+    )
 
-    xs, ys = dataset.x.tolist(), dataset.y.tolist()
+    cache_dir.mkdir(parents=True, exist_ok=True)
+
+    xs, ys = [], []
 
     if output_path.exists():
         back_translated = set(joblib.load(output_path))
-        data = set(zip(xs, ys)) | back_translated
-        xs, ys = zip(*data)
-        xs = list(xs)
-        ys = list(ys)
+        data = joblib.load(cache_dir / "data.joblib")
+        xs, ys = data["xs"], data["ys"]
     else:
         back_translated = set()
+
+    if len(xs) == 0:
+        xs, ys = dataset.x.tolist(), dataset.y.tolist()
 
     n_samples = get_n_samples(le.transform(ys))
 
     num_steps = 0
     max_samples = args.max_samples or len(dataset)
+    batch_data = set()
     with tqdm(total=max_samples) as pbar:
         pbar.update(len(back_translated))
         while len(back_translated) < max_samples:
@@ -179,18 +189,36 @@ def _generate_samples_with_over(
             batch_x = np.array([xs[i] for i in batch_idx])
             batch_y = le.transform([ys[i] for i in batch_idx])
             probs = (1 - n_samples[batch_y] / n_samples.max()) + 1e-4
-            idx = torch.bernoulli(probs.clamp(max=1.0)).nonzero(as_tuple=True)[0]
-            idx = idx[: max_samples - len(back_translated)].reshape(-1)
+            idx = (
+                torch.bernoulli(probs.clamp(max=1.0))
+                .nonzero(as_tuple=True)[0]
+                .reshape(-1)
+            )
 
             if idx.nelement() == 0:
                 continue
 
             idx = idx.numpy()
+            batch_data.update(
+                set(
+                    zip(
+                        batch_idx[idx].tolist(),
+                        batch_x[idx].tolist(),
+                        le.classes_[batch_y[idx]].tolist(),
+                    )
+                )
+            )
+
+            if len(batch_data) < args.batch_size:
+                continue
+
+            batch_idx, batch_x, batch_y = zip(*batch_data)
+            batch_idx, batch_x, batch_y = list(batch_idx), list(batch_x), list(batch_y)
             aug_data = (
                 set(
                     zip(
                         _backtranslate(
-                            batch_x[idx].tolist(),
+                            batch_x[: args.batch_size],
                             src_model,
                             src_tokenizer,
                             tgt_model,
@@ -198,15 +226,22 @@ def _generate_samples_with_over(
                             args.device,
                             args.mp_enabled,
                         ),
-                        le.classes_[batch_y[idx]].tolist(),
+                        batch_y[: args.batch_size],
                     )
                 )
                 - back_translated
             )
 
+            delete_list_elements(xs, batch_idx[: args.batch_size])
+            delete_list_elements(ys, batch_idx[: args.batch_size])
+            assert len(xs) == len(ys)
+
+            batch_data.clear()
+
             if not aug_data:
                 continue
 
+            aug_data = set(list(aug_data)[: max_samples - len(back_translated)])
             back_translated.update(aug_data)
             pbar.update(len(aug_data))
 
@@ -221,8 +256,10 @@ def _generate_samples_with_over(
 
             if num_steps % args.save_interval == 0:
                 joblib.dump(list(back_translated), output_path)
+                joblib.dump({"xs": xs, "ys": ys}, cache_dir / "data.joblib")
 
     joblib.dump(list(back_translated), output_path)
+    joblib.dump({"xs": xs, "ys": ys}, cache_dir / "data.joblib")
 
 
 @cli.command(context_settings={"show_default": True})
@@ -232,7 +269,9 @@ def backtranslation(**args: Any) -> None:
     args = AttrDict(args)
     args.device = torch.device("cpu" if args.no_cuda else "cuda")
     args.output_dir = Path(args.output_dir)
+    args.cache_dir = Path(args.cache_dir)
     args.output_dir.mkdir(parents=True, exist_ok=True)
+    args.cache_dir.mkdir(parents=True, exist_ok=True)
 
     logger.info("Load Dataset")
     train_dataset = LotteQADataset()

@@ -4,7 +4,7 @@ export PROTOCOL_BUFFERS_PYTHON_IMPLEMENTATION=python
 # export MLFLOW_EXPERIMENT_NAME=Baseline
 
 DATASET=LotteQA
-MODEL=BaselineWithMLAttention
+MODEL=Baseline
 
 args=(
     --model-name $MODEL
@@ -23,9 +23,9 @@ args=(
     --use-layernorm
     --max-length 100
     --seed $1
-    --swa-warmup 1
-    --eval-step 5000
-    --early 10
+    --swa-warmup 0
+    --eval-step 2000
+    --early 5
     --mp-enabled
     --gradient-max-norm 5.0
     --num-workers 8
@@ -33,7 +33,7 @@ args=(
     --valid-size 1.0
     # --load-only-weights
     # --run-id "8119d5093bb5486ea9c23f7954755deb"
-    # --aug-filename "augmented.backtranslation.v1.csv"
+    --aug-filename "train+back.v7.csv"
 )
 
 python main.py train-baseline "${args[@]}"

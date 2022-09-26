@@ -11,7 +11,8 @@ import shutil
 import time
 from datetime import timedelta
 from functools import wraps
-from typing import Any, Dict, Optional
+from pathlib import Path
+from typing import Any, Dict, List, Optional, Union
 
 import joblib
 import numpy as np
@@ -91,7 +92,9 @@ def get_num_batches(batch_size: int, num_samples: int, drop_last: bool = False) 
     return (num_samples + batch_size - 1) // batch_size
 
 
-def get_label_encoder(path: str, y: Optional[np.array] = None) -> LabelEncoder:
+def get_label_encoder(
+    path: Union[str, Path], y: Optional[np.array] = None
+) -> LabelEncoder:
     if os.path.exists(path):
         return joblib.load(path)
 
@@ -108,3 +111,10 @@ def get_label_encoder(path: str, y: Optional[np.array] = None) -> LabelEncoder:
 def get_n_samples(y: np.ndarray) -> torch.Tensor:
     _, n_samples = np.unique(y, return_counts=True)
     return torch.from_numpy(n_samples)
+
+
+def delete_list_elements(list_: List[Any], indices: List[int]) -> None:
+    indices = sorted(indices, reverse=True)
+    for idx in indices:
+        if idx < len(list_):
+            list_.pop(idx)
