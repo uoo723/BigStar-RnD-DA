@@ -75,7 +75,7 @@ def _generate_seq(
 ) -> List[str]:
     model.eval()
     batch_x = {k: v.to(device) for k, v in batch_x.items()}
-    with torch.no_grad(), torch.amp.autocast(str(device), enabled=mp_enabled):
+    with torch.no_grad(), torch.amp.autocast(device.type, enabled=mp_enabled):
         encoded = model.generate(**batch_x)
 
     with tokenizer.as_target_tokenizer():
