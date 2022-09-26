@@ -188,11 +188,7 @@ def _generate_samples_with_over(
             batch_x = np.array([xs[i] for i in batch_idx])
             batch_y = le.transform([ys[i] for i in batch_idx])
             probs = (1 - n_samples[batch_y] / n_samples.max()) + 1e-4
-            idx = (
-                torch.bernoulli(probs.clamp(max=1.0))
-                .nonzero(as_tuple=True)[0]
-                .reshape(-1)
-            )
+            idx = probs.clamp(max=1.0).bernoulli().nonzero(as_tuple=True)[0].reshape(-1)
 
             if idx.nelement() == 0:
                 continue
@@ -240,7 +236,8 @@ def _generate_samples_with_over(
             if not aug_data:
                 continue
 
-            aug_data = set(list(aug_data)[: max_samples - len(back_translated)])
+            aug_data_size = min(args.batch_size, max_samples - len(back_translated))
+            aug_data = set(list(aug_data)[:aug_data_size])
             back_translated.update(aug_data)
             pbar.update(len(aug_data))
 
