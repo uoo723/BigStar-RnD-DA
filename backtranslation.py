@@ -4,7 +4,6 @@ Created on 2022/09/19
 """
 import hashlib
 from pathlib import Path
-from tkinter import Y
 from typing import Any, Dict, Iterable, List, Tuple
 
 import click
