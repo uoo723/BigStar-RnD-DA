@@ -37,6 +37,7 @@ _options = [
     click.option("--num-workers", type=click.INT, default=4, help="Number of workers for data loader"),
     click.option("--output-dir", type=click.Path(), default="./outputs/backtranslation", help="Output path"),
     click.option("--output-filename", type=click.STRING, default="back_translated.joblib", help="Output filename"),
+    click.option("--aug-filename", type=click.STRING, help="filename in which data is augmented"),
     click.option("--cache-dir", type=click.Path(), default="./cache", help="Cache directory"),
     click.option("--over", is_flag=True, default=False, help="Use over sampling"),
     click.option("--max-samples", type=click.INT, help="Max # of generated samples"),
@@ -270,7 +271,7 @@ def backtranslation(**args: Any) -> None:
     args.cache_dir.mkdir(parents=True, exist_ok=True)
 
     logger.info("Load Dataset")
-    train_dataset = LotteQADataset()
+    train_dataset = LotteQADataset(aug_filename=args.aug_filename)
 
     logger.info(f"# of train: {len(train_dataset):,}")
 
