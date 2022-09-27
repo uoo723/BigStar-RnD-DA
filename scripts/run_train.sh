@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 # export MLFLOW_TRACKING_URI=http://localhost:5000
 export PROTOCOL_BUFFERS_PYTHON_IMPLEMENTATION=python
-# export MLFLOW_EXPERIMENT_NAME=Baseline
+export MLFLOW_EXPERIMENT_NAME=Baseline2
 
 DATASET=LotteQA
 MODEL=Baseline
@@ -25,15 +25,15 @@ args=(
     --seed $1
     --swa-warmup 0
     --eval-step 2000
-    --early 5
+    --early 10
     --mp-enabled
     --gradient-max-norm 5.0
     --num-workers 8
-    --experiment-name "Baseline"
+    --experiment-name $MLFLOW_EXPERIMENT_NAME
     --valid-size 1.0
     # --load-only-weights
     # --run-id "8119d5093bb5486ea9c23f7954755deb"
-    --aug-filename "train+back.v7.csv"
+    # --aug-filename "train+back.v8.csv"
 )
 
 python main.py train-baseline "${args[@]}"
