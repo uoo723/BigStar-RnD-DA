@@ -30,7 +30,7 @@ class LotteQADataset(Dataset):
                 os.path.join(root_data_dir, aug_filename), low_memory=False
             )
             assert "발화문" in df.columns and "인텐트" in df.columns
-            self.df = df
+            self.df = df[["발화문", "인텐트"]].drop_duplicates().reset_index(drop=True)
             return
 
         if mode == "train":
@@ -42,7 +42,11 @@ class LotteQADataset(Dataset):
         elif mode == "test":
             df = pd.read_csv(os.path.join(root_data_dir, "test.csv"), low_memory=False)
 
-        self.df = df[df["QA여부"] == "q"]
+        self.df = (
+            df[df["QA여부"] == "q"][["발화문", "인텐트"]]
+            .drop_duplicates()
+            .reset_index(drop=True)
+        )
 
     def __getitem__(self, index) -> Tuple[str, str]:
         return tuple(self.df.iloc[index][["발화문", "인텐트"]].tolist())
