@@ -147,7 +147,7 @@ class EDA:
         alpha_rd: float = 0.1,
         num_aug: int = 9,
     ) -> None:
-        self._wordnet = joblib.load(os.path.join(root_data_dir, "wordnet"))
+        self._wordnet = joblib.load(os.path.join(root_data_dir, "wordnet.joblib"))
         self._p_sr = p_sr
         self._p_ri = p_ri
         self._p_rs = p_rs
