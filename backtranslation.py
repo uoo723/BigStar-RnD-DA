@@ -4,7 +4,7 @@ Created on 2022/09/19
 """
 import hashlib
 from pathlib import Path
-from typing import Any, Dict, Iterable, List, Tuple
+from typing import Any, Dict, Iterable, List, Optional, Tuple
 
 import click
 import joblib
@@ -42,6 +42,10 @@ _options = [
     click.option("--over", is_flag=True, default=False, help="Use over sampling"),
     click.option("--max-samples", type=click.INT, help="Max # of generated samples"),
     click.option("--save-interval", type=click.INT, default=500, help="Save interval"),
+    click.option("--num-beams", type=click.INT, default=1, help="# of beams for beam search"),
+    click.option("--do-sample", is_flag=True, default=False, help="Whether or not to use sampling"),
+    click.option("--early-stopping", is_flag=True, default=False, help="Whether to stop the beam search when at least `num_beams` sentences are finished per batch or not"),
+    click.option("--max-length", type=click.INT, help="The maximum length of the sequence to be generated"),
 ]
 
 # fmt: on
@@ -73,11 +77,21 @@ def _generate_seq(
     tokenizer: PreTrainedTokenizerBase,
     device: torch.device = torch.device("cpu"),
     mp_enabled: bool = False,
+    num_beams: int = 1,
+    do_sample: bool = False,
+    early_stopping: bool = False,
+    max_length: Optional[int] = None,
 ) -> List[str]:
     model.eval()
     batch_x = {k: v.to(device) for k, v in batch_x.items()}
-    with torch.no_grad(), torch.amp.autocast(device.type, enabled=mp_enabled):
-        encoded = model.generate(**batch_x)
+    with torch.amp.autocast(device.type, enabled=mp_enabled):
+        encoded = model.generate(
+            batch_x["input_ids"],
+            num_beams=num_beams,
+            do_sample=do_sample,
+            early_stopping=early_stopping,
+            max_length=max_length,
+        )
 
     with tokenizer.as_target_tokenizer():
         return tokenizer.batch_decode(encoded, skip_special_tokens=True)
@@ -91,21 +105,22 @@ def _backtranslate(
     tgt_tokenizer: PreTrainedTokenizerBase,
     device: torch.device = torch.device("cpu"),
     mp_enabled: bool = False,
+    **kwargs: Any,
 ) -> List[str]:
     # Translate from source language to target language
     inputs = src_tokenizer(
         sents, padding=True, truncation=True, max_length=512, return_tensors="pt"
     )
-    inputs = {k: v.to(device) for k, v in inputs.items()}
-    translated = _generate_seq(inputs, src_model, src_tokenizer, device, mp_enabled)
+    translated = _generate_seq(
+        inputs, src_model, src_tokenizer, device, mp_enabled, **kwargs
+    )
 
     # Translate from target language back to source language
     inputs = tgt_tokenizer(
         translated, padding=True, truncation=True, max_length=512, return_tensors="pt"
     )
-    inputs = {k: v.to(device) for k, v in inputs.items()}
     back_translated = _generate_seq(
-        inputs, tgt_model, tgt_tokenizer, device, mp_enabled
+        inputs, tgt_model, tgt_tokenizer, device, mp_enabled, **kwargs
     )
 
     return back_translated
@@ -221,6 +236,10 @@ def _generate_samples_with_over(
                             tgt_tokenizer,
                             args.device,
                             args.mp_enabled,
+                            num_beams=args.num_beams,
+                            do_sample=args.do_sample,
+                            early_stopping=args.early_stopping,
+                            max_length=args.max_length,
                         ),
                         batch_y[: args.batch_size],
                     )

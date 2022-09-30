@@ -6,6 +6,8 @@ args=(
     --over
     --output-filename "back_translated.v4.joblib"
     --save-interval 200
+    --num-beams 5
+    --early-stopping
 )
 
 python main.py backtranslation "${args[@]}"
