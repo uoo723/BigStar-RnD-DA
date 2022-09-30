@@ -249,30 +249,24 @@ class BaselineTrainerModel(BaseTrainerModel):
             gt, predictions, average="weighted", zero_division=0
         )
 
+        metrics = {
+            "f1_micro": f1_micro,
+            "f1_macro": f1_macro,
+            "prec_macro": prec_macro,
+            "recall_macro": recall_macro,
+            "f1_weighted": f1_weighted,
+            "prec_weighted": prec_weighted,
+            "recall_weighted": recall_weighted,
+        }
+
         if is_val:
-            self.log_dict({"val/f1_micro": f1_micro}, prog_bar=True)
             self.log_dict(
-                {
-                    "val/f1_macro": f1_macro,
-                    "val/prec_macro": prec_macro,
-                    "val/recall_macro": recall_macro,
-                    "val/f1_weighted": f1_weighted,
-                    "val/prec_weighted": prec_weighted,
-                    "val/recall_weighted": recall_weighted,
-                }
+                {f"val/{self.early_criterion}": metrics.pop(self.early_criterion)},
+                prog_bar=True,
             )
+            self.log_dict({f"val/{k}": v for k, v in metrics.items()})
         else:
-            self.log_dict(
-                {
-                    "test/f1_micro": f1_micro,
-                    "test/f1_macro": f1_macro,
-                    "test/prec_macro": prec_macro,
-                    "test/recall_macro": recall_macro,
-                    "test/f1_weighted": f1_weighted,
-                    "test/prec_weighted": prec_weighted,
-                    "test/recall_weighted": recall_weighted,
-                }
-            )
+            self.log_dict({f"test/{k}": v for k, v in metrics.item()})
 
     def validation_step(self, batch: BATCH, _) -> Optional[STEP_OUTPUT]:
         return self._validation_and_test_step(batch, is_val=True)
@@ -288,7 +282,15 @@ class BaselineTrainerModel(BaseTrainerModel):
 
 
 def check_args(args: AttrDict) -> None:
-    valid_early_criterion = ["f1_micro", "prec_macro", "recall_macro", "loss"]
+    valid_early_criterion = [
+        "f1_micro",
+        "prec_macro",
+        "recall_macro",
+        "f1_weighted",
+        "prec_weighted",
+        "recall_weighted",
+        "loss",
+    ]
     valid_model_name = ["Baseline", "BaselineWithMLAttention"]
     valid_dataset_name = ["LotteQA"]
     base_trainer.check_args(

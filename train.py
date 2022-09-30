@@ -32,6 +32,11 @@ FLOAT_INT = FloatIntParamType()
 
 # fmt: off
 
+_early_criterion_choices = [
+    "f1_micro", "f1_macro", "prec_macro", "recall_macro",
+    "f1_weighted", "prec_weighted", "recall_weighted", "loss",
+]
+
 _train_options = [
     optgroup.group("Train Options"),
     optgroup.option(
@@ -54,7 +59,7 @@ _train_options = [
     optgroup.option("--load-only-weights", is_flag=True, default=False, help="Load only weights not all training states"),
     optgroup.option("--load-best", is_flag=True, default=False, help="Load best model instead of last model when training is resumed"),
     optgroup.option("--load-last", is_flag=True, default=False, help="Load last model instead of best model in test mode"),
-    optgroup.option("--early-criterion", type=click.Choice(["f1_micro", "prec_macro", "recall_macro", "loss"]), default="f1_micro", help="Early stopping criterion"),
+    optgroup.option("--early-criterion", type=click.Choice(_early_criterion_choices), default="f1_micro", help="Early stopping criterion"),
     optgroup.option("--eval-step", type=click.INT, default=100, help="Evaluation step during training"),
     optgroup.option("--num-epochs", type=click.INT, default=40, help="Total number of epochs"),
     optgroup.option("--train-batch-size", type=click.INT, default=8, help="Batch size for training"),
