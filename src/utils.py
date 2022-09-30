@@ -19,7 +19,7 @@ import numpy as np
 import torch
 from attrdict import AttrDict as _AttrDict
 from logzero import logger
-from sklearn.preprocessing import LabelEncoder
+from sklearn.preprocessing import LabelEncoder, MultiLabelBinarizer
 
 
 class AttrDict(_AttrDict):
@@ -93,14 +93,20 @@ def get_num_batches(batch_size: int, num_samples: int, drop_last: bool = False) 
 
 
 def get_label_encoder(
-    path: Union[str, Path], y: Optional[np.array] = None
-) -> LabelEncoder:
+    path: Union[str, Path],
+    y: Optional[np.array] = None,
+    is_multilabel: bool = False,
+) -> Union[LabelEncoder, MultiLabelBinarizer]:
     if os.path.exists(path):
         return joblib.load(path)
 
     assert y is not None
 
-    le = LabelEncoder().fit(y)
+    le = (
+        MultiLabelBinarizer().fit(y[..., None])
+        if is_multilabel
+        else LabelEncoder().fit(y)
+    )
 
     os.makedirs(os.path.dirname(path), exist_ok=True)
     joblib.dump(le, path)

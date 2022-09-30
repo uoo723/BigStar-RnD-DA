@@ -111,6 +111,7 @@ _baseline_options = [
     optgroup.option('--linear-size', type=click.INT, multiple=True, default=[256], help="Linear size"),
     optgroup.option("--linear-dropout", type=click.FLOAT, default=0.2, help="Linear dropout"),
     optgroup.option("--use-layernorm", is_flag=True, default=False, help="Use layernorm in classification layers"),
+    optgroup.option("--ls-alpha", type=click.FLOAT, help="Label smoothing alpha"),
 ]
 
 # fmt: on

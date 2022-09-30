@@ -4,7 +4,7 @@ Created on 2022/09/11
 """
 import os
 from functools import partial
-from typing import Any, Dict, Iterable, List, Optional, Tuple
+from typing import Any, Dict, Iterable, List, Optional, Tuple, Union
 
 import numpy as np
 import pytorch_lightning as pl
@@ -20,7 +20,7 @@ from pytorch_lightning.utilities.types import (
 )
 from sklearn.metrics import f1_score, precision_recall_fscore_support
 from sklearn.model_selection import train_test_split
-from sklearn.preprocessing import LabelEncoder
+from sklearn.preprocessing import LabelEncoder, MultiLabelBinarizer
 from torch.utils.data import DataLoader, Subset
 from transformers import AutoTokenizer
 from transformers.tokenization_utils_base import PreTrainedTokenizerBase
@@ -59,6 +59,7 @@ class BaselineTrainerModel(BaseTrainerModel):
         linear_size: List[str] = [256],
         linear_dropout: float = 0.2,
         use_layernorm: bool = False,
+        ls_alpha: Optional[float] = None,
         aug_filename: Optional[str] = None,
         *args: Any,
         **kwargs: Any,
@@ -72,17 +73,29 @@ class BaselineTrainerModel(BaseTrainerModel):
         self.linear_size = linear_size
         self.linear_dropout = linear_dropout
         self.use_layernorm = use_layernorm
+        self.ls_alpha = ls_alpha
         self.aug_filename = aug_filename
         self._le = None
         self._tokenizer = None
         self.save_hyperparameters(ignore=self.IGNORE_HPARAMS)
 
     @property
-    def le(self) -> LabelEncoder:
+    def le(self) -> Union[LabelEncoder, MultiLabelBinarizer]:
         if self._le is None:
             dataset = LotteQADataset()
+            if self.ls_alpha is not None:
+                le_filename = "label_encoder_mlb.joblib"
+                is_multilabel = True
+                y = dataset.y[..., None]
+            else:
+                le_filename = "label_encoder.joblib"
+                is_multilabel = False
+                y = dataset.y
+
             self._le = get_label_encoder(
-                os.path.join(self.cache_dir, "label_encoder.joblib"), dataset.y
+                os.path.join(self.cache_dir, le_filename),
+                y,
+                is_multilabel=is_multilabel,
             )
         return self._le
 
@@ -178,11 +191,22 @@ class BaselineTrainerModel(BaseTrainerModel):
             num_labels=len(self.le.classes_), **filter_arguments(hparams, model_cls)
         )
 
+    def _get_loss(self, inputs: torch.Tensor, targets: torch.Tensor) -> torch.Tensor:
+        if isinstance(self.le, LabelEncoder):
+            loss = F.cross_entropy(inputs, targets)
+        else:
+            if self.ls_alpha is not None:
+                targets = targets * (1 - self.ls_alpha) + self.ls_alpha / len(
+                    self.le.classes_
+                )
+            loss = F.binary_cross_entropy_with_logits(inputs, targets)
+        return loss
+
     def training_step(self, batch: BATCH, _) -> STEP_OUTPUT:
         batch_x, batch_y = batch
 
         outputs = self.model(batch_x)
-        loss = F.cross_entropy(outputs, batch_y)
+        loss = self._get_loss(outputs, batch_y)
         self.log("loss/train", loss)
         return loss
 
@@ -194,7 +218,7 @@ class BaselineTrainerModel(BaseTrainerModel):
         pred = outputs.argmax(dim=-1).cpu()
 
         if is_val:
-            loss = F.cross_entropy(outputs, batch_y)
+            loss = self._get_loss(outputs, batch_y)
             self.log("loss/val", loss)
 
         return pred
@@ -202,14 +226,12 @@ class BaselineTrainerModel(BaseTrainerModel):
     def _validation_and_test_epoch_end(
         self, outputs: EPOCH_OUTPUT, is_val: bool = True
     ) -> None:
-        predictions = np.concatenate(outputs)
+        predictions = self.le.classes_[np.concatenate(outputs)]
 
         if is_val:
-            gt = self.le.transform(
-                self.val_dataset.dataset.y[self.val_ids][: len(predictions)]
-            )
+            gt = self.val_dataset.dataset.y[self.val_ids][: len(predictions)]
         else:
-            gt = self.le.transform(self.test_dataset.y)[: len(predictions)]
+            gt = self.test_dataset.y[: len(predictions)]
 
         # f1_micro = prec_micro = recall_micro == accuracy
         f1_micro = f1_score(gt, predictions, average="micro", zero_division=0)

@@ -3,12 +3,12 @@ Created on 2022/09/10
 @author Sangwoo Han
 """
 import os
-from typing import Dict, Iterable, Optional, Tuple
+from typing import Dict, Iterable, Optional, Tuple, Union
 
 import numpy as np
 import pandas as pd
 import torch
-from sklearn.preprocessing import LabelEncoder
+from sklearn.preprocessing import LabelEncoder, MultiLabelBinarizer
 from torch.utils.data import Dataset
 from transformers.tokenization_utils_base import PreTrainedTokenizerBase
 
@@ -70,7 +70,7 @@ class LotteQADataset(Dataset):
 def collate_fn(
     batch: Iterable[Tuple[str, str]],
     tokenizer: PreTrainedTokenizerBase,
-    le: LabelEncoder,
+    le: Union[LabelEncoder, MultiLabelBinarizer],
     max_length: int = 30,
 ) -> Tuple[Dict[str, torch.Tensor], torch.Tensor]:
     x = [b[0] for b in batch]
@@ -82,5 +82,10 @@ def collate_fn(
         truncation="longest_first",
         return_tensors="pt",
     )
-    labels = torch.from_numpy(le.transform(y))
+    if isinstance(le, LabelEncoder):
+        encoded_y = le.transform(y)
+    else:
+        encoded_y = le.transform(np.array(y)[..., None]).astype(np.float32)
+
+    labels = torch.from_numpy(encoded_y)
     return inputs, labels
