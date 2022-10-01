@@ -59,7 +59,7 @@ _train_options = [
     optgroup.option("--load-only-weights", is_flag=True, default=False, help="Load only weights not all training states"),
     optgroup.option("--load-best", is_flag=True, default=False, help="Load best model instead of last model when training is resumed"),
     optgroup.option("--load-last", is_flag=True, default=False, help="Load last model instead of best model in test mode"),
-    optgroup.option("--early-criterion", type=click.Choice(_early_criterion_choices), default="f1_micro", help="Early stopping criterion"),
+    optgroup.option("--early-criterion", type=click.Choice(_early_criterion_choices), default="loss", help="Early stopping criterion"),
     optgroup.option("--eval-step", type=click.INT, default=100, help="Evaluation step during training"),
     optgroup.option("--num-epochs", type=click.INT, default=40, help="Total number of epochs"),
     optgroup.option("--train-batch-size", type=click.INT, default=8, help="Batch size for training"),
@@ -119,6 +119,12 @@ _baseline_options = [
     optgroup.option("--ls-alpha", type=click.FLOAT, help="Label smoothing alpha"),
 ]
 
+_gpt2_options = [
+    optgroup.group("Training Options for GPT2"),
+    optgroup.option("--pretrained-model-name", type=click.STRING, default="skt/kogpt2-base-v2", help="Pretrained model name"),
+    optgroup.option("--block-size", type=click.INT, default=1024, help="Block size of single long sequence of texts"),
+]
+
 # fmt: on
 
 
@@ -138,6 +144,21 @@ def train_baseline(ctx: click.core.Context, **args: Any) -> None:
     train_model("Baseline", **args)
 
 
+@cli.command(context_settings={"show_default": True})
+@add_options(_train_options)
+@add_options(_log_options)
+@add_options(_dataset_options)
+@add_options(_gpt2_options)
+@click.pass_context
+def train_gpt2(ctx: click.core.Context, **args: Any) -> None:
+    """Train GPT2"""
+    if ctx.obj["save_args"] is not None:
+        save_args(args, ctx.obj["save_args"])
+        return
+    os.environ["TOKENIZERS_PARALLELISM"] = "false"
+    train_model("GPT2", **args)
+
+
 @log_elapsed_time
 def train_model(
     train_name: str,
@@ -146,9 +167,11 @@ def train_model(
     enable_trial_pruning: bool = False,
     **args: Any,
 ) -> None:
-    assert train_name in ["Baseline"]
+    assert train_name in ["Baseline", "GPT2"]
     if train_name == "Baseline":
         import src.baseline.trainer as trainer
+    elif train_name == "GPT2":
+        import src.gpt2.trainer as trainer
 
     args = AttrDict(args)
 

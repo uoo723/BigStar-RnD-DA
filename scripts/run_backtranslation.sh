@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 
 args=(
-    --batch-size 32
+    --batch-size 16
     --mp-enabled
     --over
     --output-filename "back_translated.v4.joblib"

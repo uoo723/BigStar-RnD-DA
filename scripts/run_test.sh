@@ -14,7 +14,7 @@ args=(
     --mode "test"
     --test-batch-size 32
     --mp-enabled
-    --run-id "6d26963c2d3f49d1a31439bd79b4996d"
+    --run-id "ca49adf0b85642a5bf22d86cfbe3782a"
 )
 
 python main.py train-baseline "${args[@]}"

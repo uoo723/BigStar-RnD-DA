@@ -35,6 +35,7 @@ from transformers import get_scheduler
 from .callbacks import MLFlowExceptionCallback, StochasticWeightAveraging
 from .optimizers import DenseSparseAdamW
 from .utils import AttrDict, filter_arguments, set_seed
+from transformers import GPT2LMHeadModel
 
 
 def get_run(log_dir: str, run_id: str) -> Run:
@@ -510,7 +511,9 @@ def train(
     mode = "min" if args.early_criterion in ["loss"] else "max"
 
     callbacks = []
-    callbacks.append(EarlyStopping(monitor=monitor, patience=args.early, mode=mode))
+    if args.early > 0:
+        callbacks.append(EarlyStopping(monitor=monitor, patience=args.early, mode=mode))
+
     callbacks.append(MLFlowExceptionCallback())
     callbacks.append(
         ModelCheckpoint(
@@ -577,7 +580,9 @@ def train(
         with open(args.save_run_id_path, "w", encoding="utf8") as f:
             f.write(args.run_id)
 
-    model_checkpoint: ModelCheckpoint = callbacks[2]
+    model_checkpoint: ModelCheckpoint = list(
+        filter(lambda c: isinstance(c, ModelCheckpoint), callbacks)
+    )[0]
     best_score: Optional[torch.Tensor] = model_checkpoint.best_model_score
     best_score = best_score.item() if best_score else 0
 
