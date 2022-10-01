@@ -266,7 +266,7 @@ class BaselineTrainerModel(BaseTrainerModel):
             )
             self.log_dict({f"val/{k}": v for k, v in metrics.items()})
         else:
-            self.log_dict({f"test/{k}": v for k, v in metrics.item()})
+            self.log_dict({f"test/{k}": v for k, v in metrics.items()})
 
     def validation_step(self, batch: BATCH, _) -> Optional[STEP_OUTPUT]:
         return self._validation_and_test_step(batch, is_val=True)
