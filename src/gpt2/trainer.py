@@ -142,7 +142,8 @@ class GPT2TrainerModel(BaseTrainerModel):
             attention_mask = torch.ones(
                 len(input_ids), self.block_size, dtype=torch.long
             )
-            attention_mask[-1, -num_pads:] = 0
+            if num_pads > 0:
+                attention_mask[-1, -num_pads:] = 0
 
             self.train_dataset = TensorDataset(input_ids, attention_mask)
 
