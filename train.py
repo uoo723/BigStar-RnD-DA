@@ -19,11 +19,14 @@ class FloatIntParamType(click.ParamType):
 
     def convert(self, value, param, ctx):
         try:
-            value = float(value)
-            new_value = int(value)
-            if new_value == value:
-                return new_value
-            return value
+            int_value = int(value)
+            return int_value
+        except ValueError:
+            pass
+
+        try:
+            float_value = float(value)
+            return float_value
         except ValueError:
             self.fail(f"{value!r} is not a valid float|int", param, ctx)
 
@@ -60,7 +63,7 @@ _train_options = [
     optgroup.option("--load-best", is_flag=True, default=False, help="Load best model instead of last model when training is resumed"),
     optgroup.option("--load-last", is_flag=True, default=False, help="Load last model instead of best model in test mode"),
     optgroup.option("--early-criterion", type=click.Choice(_early_criterion_choices), default="loss", help="Early stopping criterion"),
-    optgroup.option("--eval-step", type=click.INT, default=100, help="Evaluation step during training"),
+    optgroup.option("--eval-step", type=FLOAT_INT, default=1.0, help="Evaluation step during training"),
     optgroup.option("--num-epochs", type=click.INT, default=40, help="Total number of epochs"),
     optgroup.option("--train-batch-size", type=click.INT, default=8, help="Batch size for training"),
     optgroup.option("--test-batch-size", type=click.INT, default=1, help="Batch size for test"),

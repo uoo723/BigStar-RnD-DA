@@ -464,13 +464,13 @@ def check_args(
         args.dataset_name in valid_dataset_name
     ), f"dataset_name must be one of {valid_dataset_name}"
 
-    assert type(args.valid_size) in [float, int], "valid size must be int or float"
+    assert isinstance(args.valid_size, (int, float)), "valid size must be int or float"
 
-    if type(args.valid_size) == int:
+    if isinstance(args.valid_size, int):
         assert args.valid_size > 0, "valid size must be greater than 0"
 
-    if type(args.valid_size) == float:
-        assert 0 < args.valid_size < 1, "valid size must be 0 < valid_size < 1"
+    if isinstance(args.valid_size, float):
+        assert 0 < args.valid_size <= 1, "valid size must be 0 < valid_size <= 1"
 
 
 def init_run(args: AttrDict) -> None:
