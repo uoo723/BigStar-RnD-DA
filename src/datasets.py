@@ -18,6 +18,7 @@ class LotteQADataset(Dataset):
         self,
         root_data_dir: str = "./data",
         mode: str = "train",
+        df: Optional[pd.DataFrame] = None,
         aug_filename: Optional[str] = None,
     ) -> None:
         assert mode in {"train", "val", "test"}
@@ -31,6 +32,10 @@ class LotteQADataset(Dataset):
             )
             assert "발화문" in df.columns and "인텐트" in df.columns
             self.df = df[["발화문", "인텐트"]].drop_duplicates().reset_index(drop=True)
+            return
+
+        elif df is not None:
+            self.df = df
             return
 
         if mode == "train":
