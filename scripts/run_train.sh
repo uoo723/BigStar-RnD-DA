@@ -13,8 +13,8 @@ args=(
     --run-script $0
     --experiment-name $MLFLOW_EXPERIMENT_NAME
     --optim-name "adamw"
-    --lr 5e-5
-    --num-epochs 10
+    --lr 5.5e-6
+    --num-epochs 5
     --train-batch-size 32
     --test-batch-size 32
     --accumulation-step 1
@@ -26,7 +26,7 @@ args=(
     # --ls-alpha 0.1
     --max-length 100
     --seed $1
-    --swa-warmup 1
+    --swa-warmup 0
     --eval-step 2000
     --early 10
     --mp-enabled
@@ -34,8 +34,8 @@ args=(
     --num-workers 8
     --valid-size 1.0
     # --load-only-weights
-    # --run-id "8119d5093bb5486ea9c23f7954755deb"
-    # --aug-filename "train+back.v10.csv"
+    # --run-id "026111a273c14389885148f6a51a4582"
+    --aug-filename "train+gpt2.v2.csv"
 )
 
 python main.py train-baseline "${args[@]}"

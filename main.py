@@ -17,5 +17,6 @@ if __name__ == "__main__":
     from hp_tuning import *
     from train import *
     from backtranslation import *
+    from gpt2 import *
 
     cli()
