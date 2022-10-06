@@ -31,7 +31,9 @@ class LotteQADataset(Dataset):
                 os.path.join(root_data_dir, aug_filename), low_memory=False
             )
             assert "발화문" in df.columns and "인텐트" in df.columns
-            self.df = df[["발화문", "인텐트"]].drop_duplicates().reset_index(drop=True)
+            self.df = (
+                df[["발화문", "인텐트"]].drop_duplicates().dropna().reset_index(drop=True)
+            )
             return
 
         elif df is not None:

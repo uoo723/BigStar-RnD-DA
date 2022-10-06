@@ -86,15 +86,13 @@ class BaselineTrainerModel(BaseTrainerModel):
             if self.ls_alpha is not None:
                 le_filename = "label_encoder_mlb.joblib"
                 is_multilabel = True
-                y = dataset.y[..., None]
             else:
                 le_filename = "label_encoder.joblib"
                 is_multilabel = False
-                y = dataset.y
 
             self._le = get_label_encoder(
                 os.path.join(self.cache_dir, le_filename),
-                y,
+                dataset.y,
                 is_multilabel=is_multilabel,
             )
         return self._le
