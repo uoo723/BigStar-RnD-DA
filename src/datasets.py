@@ -50,6 +50,7 @@ class LotteQADataset(Dataset):
         self.df = (
             df[df["QA여부"] == "q"][["발화문", "인텐트"]]
             .drop_duplicates()
+            .dropna()
             .reset_index(drop=True)
         )
 
