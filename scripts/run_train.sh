@@ -10,22 +10,22 @@ MODEL=Baseline
 args=(
     --model-name $MODEL
     --dataset-name $DATASET
-    --run-script $0
     --experiment-name $MLFLOW_EXPERIMENT_NAME
+    --run-script $0
+    --seed $1
     --optim-name "adamw"
     --lr 5.5e-6
-    --num-epochs 5
+    --num-epochs 50
     --train-batch-size 32
     --test-batch-size 32
     --accumulation-step 1
     --scheduler-type "linear"
-    --scheduler-warmup 0.05
+    --scheduler-warmup 0.1
     --early-criterion 'f1_weighted'
     --pretrained-model-name "klue/bert-base"
     --use-layernorm
     # --ls-alpha 0.1
     --max-length 100
-    --seed $1
     --swa-warmup 0
     --eval-step 2000
     --early 10
@@ -34,8 +34,8 @@ args=(
     --num-workers 8
     --valid-size 1.0
     # --load-only-weights
-    # --run-id "026111a273c14389885148f6a51a4582"
-    --aug-filename "train+gpt2.v2.csv"
+    # --run-id "f3043d2eda5349ee99b452640bca1a35"
+    # --aug-filename "train_samplingv5+gpt2_datav4.csv"
 )
 
 python main.py train-baseline "${args[@]}"
